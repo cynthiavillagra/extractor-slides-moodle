@@ -1,0 +1,5 @@
+playwright>=1.48        # después de instalar: python -m playwright install chromium
+flask>=3.0
+pillow>=10.0
+python-pptx>=1.0
+python-dotenv>=1.0

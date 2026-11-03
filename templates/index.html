@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Extractor de slides</title>
+<style>
+  :root { --bg:#f6f5f2; --card:#fff; --ink:#1d1d1f; --muted:#6b6b70; --line:#e2e0da;
+          --accent:#3b4f8c; --accent-ink:#fff; --bad:#b3261e; --ok:#2e7d32; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#16171a; --card:#1f2024; --ink:#ececee; --muted:#9a9aa2; --line:#33343a;
+            --accent:#9fb3f0; --accent-ink:#121a33; }
+  }
+  * { box-sizing:border-box }
+  body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif }
+  main { max-width:860px; margin:0 auto; padding:24px 16px 60px }
+  h1 { font-size:1.5rem; margin:0 0 4px }
+  .sub { color:var(--muted); margin:0 0 20px }
+  section { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px; margin-bottom:16px }
+  h2 { font-size:1rem; margin:0 0 12px }
+  label { display:block; font-size:.85rem; color:var(--muted); margin-bottom:4px }
+  input[type=text], input[type=password], input[type=url] {
+    width:100%; padding:8px 10px; border:1px solid var(--line); border-radius:8px; background:var(--bg); color:var(--ink); font:inherit }
+  .fila { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:12px }
+  .fila > div { flex:1 1 200px; min-width:0 }
+  .ruta { display:flex; gap:8px } .ruta input { flex:1 }
+  button { padding:8px 14px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--ink); font:inherit; cursor:pointer; white-space:nowrap }
+  button.primario { background:var(--accent); color:var(--accent-ink); border-color:var(--accent); font-weight:600 }
+  button:disabled { opacity:.5; cursor:default }
+  .check { display:flex; align-items:center; gap:6px; font-size:.9rem }
+  .ayuda { color:var(--muted); font-size:.82rem; margin:4px 0 0 }
+  .ok { color:var(--ok) } .error { color:var(--bad) }
+  pre { background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:12px; max-height:360px; overflow:auto; white-space:pre-wrap; font-size:.82rem; margin:0 }
+  ul.res { margin:10px 0 0; padding-left:18px } ul.res a { color:var(--accent) }
+  details summary { cursor:pointer; color:var(--muted); font-size:.9rem; margin-bottom:8px }
+</style>
+</head>
+<body>
+<main>
+  <h1>Extractor de presentaciones del aula</h1>
+  <p class="sub">Entra al aula virtual con tu usuario, abre la página y junta todas las presentaciones incrustadas en un solo PDF / PPTX.</p>
+
+  <section>
+    <h2>1 · Página del aula</h2>
+    <label for="url">Link de la página (curso, sección o actividad)</label>
+    <input type="url" id="url" placeholder="https://campus.ejemplo.edu.ar/mod/page/view.php?id=12345">
+    <div class="fila" style="margin-top:12px">
+      <div><label for="nombre">Nombre del documento (opcional)</label>
+        <input type="text" id="nombre" placeholder="Por defecto, el título de la página"></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>2 · Acceso</h2>
+    {% if hay_credenciales %}
+      <p class="ok">✔ Uso el usuario del archivo .env ({{ usuario_env }}).</p>
+      <details><summary>Usar otro usuario solo esta vez</summary>
+    {% else %}
+      <p class="ayuda">No hay usuario en el .env (ver README). Podés escribirlo acá: se usa solo para esta extracción y no se guarda.</p>
+    {% endif %}
+      <div class="fila">
+        <div><label for="usuario">Usuario</label><input type="text" id="usuario" autocomplete="username"></div>
+        <div><label for="clave">Contraseña</label><input type="password" id="clave" autocomplete="current-password"></div>
+      </div>
+    {% if hay_credenciales %}</details>{% endif %}
+  </section>
+
+  <section>
+    <h2>3 · Salida</h2>
+    <label for="salida">Carpeta donde guardar</label>
+    <div class="ruta" style="margin-bottom:12px">
+      <input type="text" id="salida" value="{{ salida }}">
+      <button type="button" onclick="elegir()">Carpeta…</button>
+    </div>
+    <div class="fila">
+      <label class="check"><input type="checkbox" id="pdf" checked> PDF</label>
+      <label class="check"><input type="checkbox" id="pptx" checked> PPTX</label>
+      <label class="check"><input type="checkbox" id="ver"> Mostrar el navegador mientras trabaja</label>
+    </div>
+    <button class="primario" id="btn" onclick="extraer()">Extraer presentaciones</button>
+  </section>
+
+  <section id="secLog" hidden>
+    <h2>4 · Progreso</h2>
+    <pre id="log"></pre>
+    <div id="resultado"></div>
+  </section>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+let visto = 0, timer = null;
+function esc(s) { return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+async function elegir() {
+  const r = await (await fetch('/elegir')).json();
+  if (r.error) alert(r.error);
+  if (r.ruta) $('salida').value = r.ruta;
+}
+
+async function extraer() {
+  const d = { url: $('url').value, nombre: $('nombre').value, salida: $('salida').value,
+              usuario: $('usuario').value, clave: $('clave').value,
+              pdf: $('pdf').checked, pptx: $('pptx').checked, ver: $('ver').checked };
+  const j = await (await fetch('/extraer', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(d) })).json();
+  if (!j.ok) return alert(j.error);
+  $('clave').value = '';
+  $('secLog').hidden = false; $('log').textContent = ''; $('resultado').innerHTML = ''; visto = 0;
+  $('btn').disabled = true; timer = setInterval(sondear, 1500);
+}
+
+async function sondear() {
+  const e = await (await fetch('/estado?desde=' + visto)).json();
+  if (e.log.length) { $('log').textContent += e.log.join('\n') + '\n'; $('log').scrollTop = 1e9; }
+  visto = e.total;
+  if (!e.corriendo) {
+    clearInterval(timer); timer = null; $('btn').disabled = false;
+    const r = e.resultado;
+    if (r && r.archivos.length) {
+      $('resultado').innerHTML = `<p class="ok">${r.diapositivas} diapositiva(s) de ${r.presentaciones} presentación(es).</p><ul class="res">` +
+        r.archivos.map(a => `<li><a href="/archivo?ruta=${encodeURIComponent(a)}" target="_blank">${esc(a.split(/[\\/]/).pop())}</a></li>`).join('') + '</ul>';
+    }
+  }
+}
+</script>
+</body>
+</html>
