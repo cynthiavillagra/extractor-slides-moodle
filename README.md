@@ -40,9 +40,6 @@ py -3 -m venv .venv                     # crea el entorno virtual (o: python -m 
 python -m pip install --upgrade pip
 pip install -r requirements.txt
 python -m playwright install chromium   # descarga el navegador que usa Playwright (una sola vez)
-
-copy .env.example .env                  # y completá tu usuario y contraseña
-notepad .env
 ```
 
 > Si PowerShell dice que *la ejecución de scripts está deshabilitada*, corré una sola vez
@@ -60,16 +57,21 @@ source .venv/bin/activate
 python -m pip install --upgrade pip
 pip install -r requirements.txt
 python -m playwright install chromium   # en Linux puede pedir: python -m playwright install-deps
-
-cp .env.example .env                    # y completá tu usuario y contraseña
 ```
 
 ### Atajo
 
 `iniciar.bat` (Windows, doble clic) o `./iniciar.sh` (Linux/macOS) hacen todo lo de arriba la primera vez
-(venv + dependencias + navegador + `.env`) y después abren la interfaz.
+(venv + dependencias + navegador) y después abren la interfaz, donde cargás tu usuario y contraseña.
 
-## El archivo `.env` (usuario y contraseña)
+## Usuario y contraseña
+
+**La forma fácil: desde la interfaz web.** En la sección «Acceso» escribí usuario y contraseña y tocá
+**Guardar en esta PC**. Se guardan en el archivo `.env` de la carpeta y la próxima vez ya aparecen cargados
+(«✔ Guardado en esta PC: …»). Desde ahí mismo los podés cambiar cuando quieras.
+
+**A mano**, si preferís: copiá `.env.example` como `.env` (`copy .env.example .env` en Windows,
+`cp .env.example .env` en Linux/macOS) y completalo:
 
 ```ini
 MOODLE_USER=tu_usuario_o_dni
@@ -81,7 +83,8 @@ MOODLE_PASS=tu_contraseña
   (también funciona con Moodle instalado en una subcarpeta, ej. `https://sitio/campus/...`).
 - El `.env` está en `.gitignore`: **nunca se sube a GitHub**. Guardá una copia en un lugar seguro
   (por ejemplo tu Drive) para usarlo en otra PC.
-- En la interfaz web también podés escribir otro usuario solo para esa extracción; no se guarda.
+- El `.env` es texto plano: queda solo en tu PC, no lo compartas.
+- Si escribís usuario y contraseña en la interfaz **sin** tocar «Guardar», se usan solo para esa extracción.
 
 ## Uso
 

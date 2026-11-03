@@ -52,17 +52,21 @@
 
   <section>
     <h2>2 · Acceso</h2>
-    {% if hay_credenciales %}
-      <p class="ok">✔ Uso el usuario del archivo .env ({{ usuario_env }}).</p>
-      <details><summary>Usar otro usuario solo esta vez</summary>
-    {% else %}
-      <p class="ayuda">No hay usuario en el .env (ver README). Podés escribirlo acá: se usa solo para esta extracción y no se guarda.</p>
-    {% endif %}
+    <p id="estadoAcceso" class="{{ 'ok' if hay_credenciales else 'error' }}">
+      {% if hay_credenciales %}✔ Guardado en esta PC: {{ usuario_env }}{% else %}Todavía no hay usuario guardado en esta PC.{% endif %}</p>
+    <details {{ '' if hay_credenciales else 'open' }}><summary>{{ 'Cambiar usuario o contraseña' if hay_credenciales else 'Cargar usuario y contraseña' }}</summary>
       <div class="fila">
         <div><label for="usuario">Usuario</label><input type="text" id="usuario" autocomplete="username"></div>
         <div><label for="clave">Contraseña</label><input type="password" id="clave" autocomplete="current-password"></div>
       </div>
-    {% if hay_credenciales %}</details>{% endif %}
+      <div class="fila">
+        <div><label for="moodleUrl">Dirección del aula (opcional)</label>
+          <input type="url" id="moodleUrl" value="{{ moodle_url }}" placeholder="Vacío = la del link que pegás"></div>
+      </div>
+      <button type="button" onclick="guardarAcceso()">Guardar en esta PC</button>
+      <p class="ayuda">Se guarda en el archivo <code>.env</code> de esta carpeta (texto plano, solo en tu PC; no se sube a GitHub).
+        Si no tocás «Guardar», lo que escribas se usa solo para la próxima extracción.</p>
+    </details>
   </section>
 
   <section>
@@ -95,6 +99,14 @@ async function elegir() {
   const r = await (await fetch('/elegir')).json();
   if (r.error) alert(r.error);
   if (r.ruta) $('salida').value = r.ruta;
+}
+
+async function guardarAcceso() {
+  const j = await (await fetch('/credenciales', { method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ usuario: $('usuario').value, clave: $('clave').value, moodle_url: $('moodleUrl').value }) })).json();
+  if (!j.ok) return alert(j.error);
+  $('estadoAcceso').className = 'ok'; $('estadoAcceso').textContent = '✔ Guardado en esta PC: ' + j.usuario;
+  $('usuario').value = ''; $('clave').value = '';
 }
 
 async function extraer() {

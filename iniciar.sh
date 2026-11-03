@@ -7,9 +7,4 @@ if [ ! -x .venv/bin/python ]; then
   .venv/bin/python -m pip install -r requirements.txt
   .venv/bin/python -m playwright install chromium
 fi
-if [ ! -f .env ]; then
-  cp .env.example .env
-  echo "Se creó .env: completá tu usuario y contraseña y volvé a correr ./iniciar.sh"
-  exit 0
-fi
 exec .venv/bin/python app.py

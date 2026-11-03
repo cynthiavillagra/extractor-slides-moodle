@@ -33,7 +33,8 @@ def _log(msg) -> None:
 def inicio():
     return render_template("index.html", salida=str(ex.SALIDA_DEFAULT),
                            hay_credenciales=bool(os.environ.get("MOODLE_USER") and os.environ.get("MOODLE_PASS")),
-                           usuario_env=os.environ.get("MOODLE_USER", ""))
+                           usuario_env=os.environ.get("MOODLE_USER", ""),
+                           moodle_url=os.environ.get("MOODLE_URL", ""))
 
 
 @app.post("/extraer")
@@ -61,6 +62,40 @@ def extraer():
 
     threading.Thread(target=trabajo, daemon=True).start()
     return jsonify({"ok": True})
+
+
+ENV = ex.BASE / ".env"
+CLAVES_ENV = ("MOODLE_USER", "MOODLE_PASS", "MOODLE_URL")
+
+
+def guardar_env(valores: dict) -> None:
+    """Escribe/actualiza esas variables en .env sin tocar las demás líneas (comentarios, PUERTO, etc.)."""
+    lineas = ENV.read_text(encoding="utf-8").splitlines() if ENV.exists() else []
+    # entre comillas dobles y con escape: así una contraseña con #, espacios, comillas o \ se lee tal cual
+    pendientes = {k: '"' + v.replace("\\", "\\\\").replace('"', '\\"') + '"' for k, v in valores.items()}
+    for i, linea in enumerate(lineas):
+        clave = linea.split("=", 1)[0].strip().lstrip("#").strip()
+        if clave in pendientes and "=" in linea:
+            lineas[i] = f"{clave}={pendientes.pop(clave)}"
+    lineas += [f"{k}={v}" for k, v in pendientes.items()]
+    ENV.write_text("\n".join(lineas) + "\n", encoding="utf-8")
+
+
+@app.post("/credenciales")
+def credenciales():
+    """Guarda usuario/contraseña (y opcionalmente la dirección del aula) en el .env de esta PC."""
+    d = request.get_json(force=True)
+    usuario, clave, url = (d.get("usuario") or "").strip(), d.get("clave") or "", (d.get("moodle_url") or "").strip()
+    if not usuario or not clave:
+        return jsonify({"ok": False, "error": "Completá usuario y contraseña."}), 400
+    if any(c in usuario + clave + url for c in "\r\n"):
+        return jsonify({"ok": False, "error": "Usuario o contraseña con saltos de línea."}), 400
+    valores = {"MOODLE_USER": usuario, "MOODLE_PASS": clave}
+    if url:
+        valores["MOODLE_URL"] = url.rstrip("/")
+    guardar_env(valores)
+    os.environ.update(valores)
+    return jsonify({"ok": True, "usuario": usuario})
 
 
 @app.get("/estado")

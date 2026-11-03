@@ -7,13 +7,5 @@ if not exist .venv\Scripts\python.exe (
   .venv\Scripts\python -m pip install -r requirements.txt
   .venv\Scripts\python -m playwright install chromium
 )
-if not exist .env (
-  copy .env.example .env >nul
-  echo.
-  echo Se creo el archivo .env: completa tu usuario y contrasena y volve a abrir este archivo.
-  notepad .env
-  pause
-  exit /b
-)
 .venv\Scripts\python app.py
 pause
